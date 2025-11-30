@@ -18,6 +18,15 @@ type ItemPro[T any] struct {
 	Object     T
 	Expiration int64
 }
+
+// 如果项目已过期则返回true
+func (item ItemPro[T]) Expired() bool {
+	if item.Expiration == 0 {
+		return false
+	}
+	return time.Now().UnixNano() > item.Expiration
+}
+
 type cachePro[T any] struct {
 	defaultExpiration time.Duration
 	items             map[string]ItemPro[T]
@@ -40,7 +49,7 @@ func (c *CachePro[T]) Set(k string, x T, d time.Duration) {
 		e = time.Now().Add(d).UnixNano()
 	}
 	c.mu.Lock()
-	c.items[k] = Item{
+	c.items[k] = ItemPro[T]{
 		Object:     x,
 		Expiration: e,
 	}
@@ -57,7 +66,7 @@ func (c *cachePro[T]) set(k string, x T, d time.Duration) {
 	if d > 0 {
 		e = time.Now().Add(d).UnixNano()
 	}
-	c.items[k] = Item{
+	c.items[k] = ItemPro[T]{
 		Object:     x,
 		Expiration: e,
 	}
@@ -114,7 +123,7 @@ func (c *CachePro[T]) Get(k string) (T, bool) {
 		}
 	}
 	c.mu.RUnlock()
-	return item.Object.(T), true
+	return item.Object, true
 }
 
 // GetWithExpiration 从CachePro返回项目及其过期时间
@@ -139,13 +148,13 @@ func (c *CachePro[T]) GetWithExpiration(k string) (T, time.Time, bool) {
 
 		// Return the item and the expiration time
 		c.mu.RUnlock()
-		return item.Object.(T), time.Unix(0, item.Expiration), true
+		return item.Object, time.Unix(0, item.Expiration), true
 	}
 
 	// If expiration <= 0 (i.e. no expiration time set) then return the item
 	// and a zeroed time.Time
 	c.mu.RUnlock()
-	return item.Object.(T), time.Time{}, true
+	return item.Object, time.Time{}, true
 }
 
 func (c *cachePro[T]) get(k string) (T, bool) {
@@ -161,7 +170,7 @@ func (c *cachePro[T]) get(k string) (T, bool) {
 			return zero, false
 		}
 	}
-	return item.Object.(T), true
+	return item.Object, true
 }
 
 // 从CachePro删除项目。如果键不在CachePro中则不执行任何操作
@@ -178,7 +187,7 @@ func (c *cachePro[T]) delete(k string) (interface{}, bool) {
 	if c.onEvicted != nil {
 		if v, found := c.items[k]; found {
 			if c.delFunc != nil {
-				c.delFunc(v.Object.(T))
+				c.delFunc(v.Object)
 			}
 			delete(c.items, k)
 			return v.Object, true
@@ -186,7 +195,7 @@ func (c *cachePro[T]) delete(k string) (interface{}, bool) {
 	}
 	if v, ok := c.items[k]; ok {
 		if c.delFunc != nil {
-			c.delFunc(v.Object.(T))
+			c.delFunc(v.Object)
 		}
 	}
 	delete(c.items, k)
@@ -266,7 +275,7 @@ func (c *CachePro[T]) SaveFile(fname string) error {
 // 注意：此方法已弃用，推荐使用c.Items()和NewFrom()（参见NewFrom()的文档）
 func (c *CachePro[T]) Load(r io.Reader) error {
 	dec := gob.NewDecoder(r)
-	items := map[string]Item{}
+	items := map[string]ItemPro[T]{}
 	err := dec.Decode(&items)
 	if err == nil {
 		c.mu.Lock()
@@ -298,10 +307,10 @@ func (c *CachePro[T]) LoadFile(fname string) error {
 }
 
 // 将所有未过期的CachePro项复制到新映射中并返回
-func (c *CachePro[T]) Items() map[string]Item {
+func (c *CachePro[T]) Items() map[string]ItemPro[T] {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	m := make(map[string]Item, len(c.items))
+	m := make(map[string]ItemPro[T], len(c.items))
 	now := time.Now().UnixNano()
 	for k, v := range c.items {
 		// "Inlining" of Expired
@@ -326,7 +335,7 @@ func (c *CachePro[T]) ItemCount() int {
 // 从CachePro中删除所有项目
 func (c *CachePro[T]) Flush() {
 	c.mu.Lock()
-	c.items = map[string]Item{}
+	c.items = map[string]ItemPro[T]{}
 	c.mu.Unlock()
 }
 
@@ -361,7 +370,7 @@ func runJanitorPro[T any](c *cachePro[T], ci time.Duration) {
 	go j.Run(&CachePro[T]{c})
 }
 
-func newCachePro[T any](de time.Duration, m map[string]Item) *cachePro[T] {
+func newCachePro[T any](de time.Duration, m map[string]ItemPro[T]) *cachePro[T] {
 	if de == 0 {
 		de = -1
 	}
@@ -372,7 +381,7 @@ func newCachePro[T any](de time.Duration, m map[string]Item) *cachePro[T] {
 	return c
 }
 
-func newCacheProWithJanitor[T any](de time.Duration, ci time.Duration, m map[string]Item, DelFunc func(T)) *CachePro[T] {
+func newCacheProWithJanitor[T any](de time.Duration, ci time.Duration, m map[string]ItemPro[T], DelFunc func(T)) *CachePro[T] {
 	c := newCachePro[T](de, m)
 	c.delFunc = DelFunc
 	// This trick ensures that the janitor goroutine (which--granted it
@@ -392,7 +401,7 @@ func newCacheProWithJanitor[T any](de time.Duration, ci time.Duration, m map[str
 // 如果过期时间小于1（或NoExpiration），则CachePro中的项目永不过期（默认情况下），必须手动删除
 // 如果清理间隔小于1，则在调用c.DeleteExpired()之前不会从CachePro中删除过期项目
 func NewPro[T any](defaultExpiration, cleanupInterval time.Duration, DelFunc func(T)) *CachePro[T] {
-	items := make(map[string]Item)
+	items := make(map[string]ItemPro[T])
 	return newCacheProWithJanitor[T](defaultExpiration, cleanupInterval, items, DelFunc)
 }
 
@@ -409,6 +418,138 @@ func NewPro[T any](defaultExpiration, cleanupInterval time.Duration, DelFunc fun
 //
 // 关于序列化的注意事项：使用例如gob时，请确保在编码使用c.Items()检索的映射之前
 // 注册存储在CachePro中的各个类型，并在解码包含items映射的blob之前注册相同的类型
-func NewFromPro[T any](defaultExpiration, cleanupInterval time.Duration, items map[string]Item) *CachePro[T] {
+func NewFromPro[T any](defaultExpiration, cleanupInterval time.Duration, items map[string]ItemPro[T]) *CachePro[T] {
 	return newCacheProWithJanitor[T](defaultExpiration, cleanupInterval, items, nil)
+}
+
+// 使用给定的计算函数对缓存中的项目进行计算操作
+// 计算函数接受两个T类型的参数并返回一个T类型的结果
+func (c *CachePro[T]) Compute(k string, computeFunc func(T, T) T, defaultValue T) (T, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	item, found := c.items[k]
+	if !found {
+		// 如果键不存在，使用默认值
+		c.items[k] = ItemPro[T]{
+			Object:     defaultValue,
+			Expiration: 0, // 永不过期
+		}
+		return defaultValue, nil
+	}
+
+	// 检查是否过期
+	if item.Expiration > 0 && time.Now().UnixNano() > item.Expiration {
+		// 如果已过期，使用默认值
+		c.items[k] = ItemPro[T]{
+			Object:     defaultValue,
+			Expiration: 0, // 永不过期
+		}
+		return defaultValue, nil
+	}
+
+	// 执行计算操作
+	currentValue := item.Object
+	newValue := computeFunc(currentValue, currentValue)
+	c.items[k] = ItemPro[T]{
+		Object:     newValue,
+		Expiration: item.Expiration, // 保持原有过期时间
+	}
+
+	return newValue, nil
+}
+
+// 使用给定的计算函数对缓存中的项目进行计算操作，并指定过期时间
+// 计算函数接受两个T类型的参数并返回一个T类型的结果
+func (c *CachePro[T]) ComputeWithExpiration(k string, computeFunc func(T, T) T, defaultValue T, d time.Duration) (T, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	var e int64
+	if d == DefaultExpiration {
+		d = c.defaultExpiration
+	}
+	if d > 0 {
+		e = time.Now().Add(d).UnixNano()
+	}
+
+	item, found := c.items[k]
+	if !found {
+		// 如果键不存在，使用默认值
+		c.items[k] = ItemPro[T]{
+			Object:     defaultValue,
+			Expiration: e,
+		}
+		return defaultValue, nil
+	}
+
+	// 检查是否过期
+	if item.Expiration > 0 && time.Now().UnixNano() > item.Expiration {
+		// 如果已过期，使用默认值
+		c.items[k] = ItemPro[T]{
+			Object:     defaultValue,
+			Expiration: e,
+		}
+		return defaultValue, nil
+	}
+
+	// 执行计算操作
+	currentValue := item.Object
+	newValue := computeFunc(currentValue, currentValue)
+	c.items[k] = ItemPro[T]{
+		Object:     newValue,
+		Expiration: e, // 使用新的过期时间
+	}
+
+	return newValue, nil
+}
+
+// 使用给定的计算函数对两个缓存键的值进行计算操作
+// 计算函数接受两个T类型的参数并返回一个T类型的结果
+func (c *CachePro[T]) ComputeTwoKeys(k1, k2 string, computeFunc func(T, T) T, resultKey string, d time.Duration) (T, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	var e int64
+	if d == DefaultExpiration {
+		d = c.defaultExpiration
+	}
+	if d > 0 {
+		e = time.Now().Add(d).UnixNano()
+	}
+
+	// 获取第一个键的值
+	item1, found1 := c.items[k1]
+	if !found1 {
+		var zero T
+		return zero, fmt.Errorf("key %s not found", k1)
+	}
+	if item1.Expiration > 0 && time.Now().UnixNano() > item1.Expiration {
+		var zero T
+		return zero, fmt.Errorf("key %s has expired", k1)
+	}
+
+	// 获取第二个键的值
+	item2, found2 := c.items[k2]
+	if !found2 {
+		var zero T
+		return zero, fmt.Errorf("key %s not found", k2)
+	}
+	if item2.Expiration > 0 && time.Now().UnixNano() > item2.Expiration {
+		var zero T
+		return zero, fmt.Errorf("key %s has expired", k2)
+	}
+
+	// 执行计算操作
+	value1 := item1.Object
+	value2 := item2.Object
+	result := computeFunc(value1, value2)
+
+	// 存储结果
+	c.items[resultKey] = ItemPro[T]{
+		Object:     result,
+		Expiration: e,
+	}
+
+	return result, nil
 }
