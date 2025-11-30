@@ -15,7 +15,7 @@ type Item struct {
 	Expiration int64
 }
 
-// Returns true if the item has expired.
+// 如果项目已过期则返回true
 func (item Item) Expired() bool {
 	if item.Expiration == 0 {
 		return false
@@ -24,11 +24,10 @@ func (item Item) Expired() bool {
 }
 
 const (
-	// For use with functions that take an expiration time.
+	// 用于需要过期时间的函数
 	NoExpiration time.Duration = -1
-	// For use with functions that take an expiration time. Equivalent to
-	// passing in the same expiration duration as was given to New() or
-	// NewFrom() when the cache was created (e.g. 5 minutes.)
+	// 用于需要过期时间的函数。等同于传入与创建缓存时相同的过期时间
+	// (例如5分钟)
 	DefaultExpiration time.Duration = 0
 )
 
@@ -45,9 +44,9 @@ type cache struct {
 	janitor           *janitor
 }
 
-// Add an item to the cache, replacing any existing item. If the duration is 0
-// (DefaultExpiration), the cache's default expiration time is used. If it is -1
-// (NoExpiration), the item never expires.
+// 向缓存添加一个项目，替换任何现有项目。如果持续时间为0
+// (DefaultExpiration)，则使用缓存的默认过期时间。如果为-1
+// (NoExpiration)，则项目永不过期。
 func (c *cache) Set(k string, x interface{}, d time.Duration) {
 	// "Inlining" of set
 	var e int64
@@ -81,14 +80,13 @@ func (c *cache) set(k string, x interface{}, d time.Duration) {
 	}
 }
 
-// Add an item to the cache, replacing any existing item, using the default
-// expiration.
+// 向缓存添加一个项目，替换任何现有项目，使用默认过期时间
 func (c *cache) SetDefault(k string, x interface{}) {
 	c.Set(k, x, DefaultExpiration)
 }
 
-// Add an item to the cache only if an item doesn't already exist for the given
-// key, or if the existing item has expired. Returns an error otherwise.
+// 仅当给定键不存在项目或现有项目已过期时，向缓存添加项目
+// 否则返回错误
 func (c *cache) Add(k string, x interface{}, d time.Duration) error {
 	c.mu.Lock()
 	_, found := c.get(k)
@@ -101,8 +99,8 @@ func (c *cache) Add(k string, x interface{}, d time.Duration) error {
 	return nil
 }
 
-// Set a new value for the cache key only if it already exists, and the existing
-// item hasn't expired. Returns an error otherwise.
+// 仅当缓存键已存在且现有项目未过期时，设置新值
+// 否则返回错误
 func (c *cache) Replace(k string, x interface{}, d time.Duration) error {
 	c.mu.Lock()
 	_, found := c.get(k)
@@ -115,8 +113,7 @@ func (c *cache) Replace(k string, x interface{}, d time.Duration) error {
 	return nil
 }
 
-// Get an item from the cache. Returns the item or nil, and a bool indicating
-// whether the key was found.
+// 从缓存获取项目。返回项目或nil，以及一个布尔值指示是否找到键
 func (c *cache) Get(k string) (interface{}, bool) {
 	c.mu.RLock()
 	// "Inlining" of get and Expired
@@ -135,10 +132,9 @@ func (c *cache) Get(k string) (interface{}, bool) {
 	return item.Object, true
 }
 
-// GetWithExpiration returns an item and its expiration time from the cache.
-// It returns the item or nil, the expiration time if one is set (if the item
-// never expires a zero value for time.Time is returned), and a bool indicating
-// whether the key was found.
+// GetWithExpiration 从缓存返回项目及其过期时间
+// 返回项目或nil，如果设置了过期时间则返回过期时间（如果项目永不过期则返回time.Time的零值），
+// 以及一个布尔值指示是否找到键
 func (c *cache) GetWithExpiration(k string) (interface{}, time.Time, bool) {
 	c.mu.RLock()
 	// "Inlining" of get and Expired
@@ -179,11 +175,9 @@ func (c *cache) get(k string) (interface{}, bool) {
 	return item.Object, true
 }
 
-// Increment an item of type int, int8, int16, int32, int64, uintptr, uint,
-// uint8, uint32, or uint64, float32 or float64 by n. Returns an error if the
-// item's value is not an integer, if it was not found, or if it is not
-// possible to increment it by n. To retrieve the incremented value, use one
-// of the specialized methods, e.g. IncrementInt64.
+// 将int、int8、int16、int32、int64、uintptr、uint、uint8、uint32、uint64、
+// float32或float64类型的项目增加n。如果项目的值不是整数、未找到或无法增加n，则返回错误
+// 要获取增加后的值，请使用专门的函数，例如IncrementInt64
 func (c *cache) Increment(k string, n int64) error {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -227,11 +221,8 @@ func (c *cache) Increment(k string, n int64) error {
 	return nil
 }
 
-// Increment an item of type float32 or float64 by n. Returns an error if the
-// item's value is not floating point, if it was not found, or if it is not
-// possible to increment it by n. Pass a negative number to decrement the
-// value. To retrieve the incremented value, use one of the specialized methods,
-// e.g. IncrementFloat64.
+// 将float32或float64类型的项目增加n。如果项目的值不是浮点数、未找到或无法增加n，则返回错误
+// 传递负数来减少值。要获取增加后的值，请使用专门的函数，例如IncrementFloat64
 func (c *cache) IncrementFloat(k string, n float64) error {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -253,9 +244,8 @@ func (c *cache) IncrementFloat(k string, n float64) error {
 	return nil
 }
 
-// Increment an item of type int by n. Returns an error if the item's value is
-// not an int, or if it was not found. If there is no error, the incremented
-// value is returned.
+// 将int类型的项目增加n。如果项目的值不是int或未找到，则返回错误
+// 如果没有错误，则返回增加后的值
 func (c *cache) IncrementInt(k string, n int) (int, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -275,9 +265,8 @@ func (c *cache) IncrementInt(k string, n int) (int, error) {
 	return nv, nil
 }
 
-// Increment an item of type int8 by n. Returns an error if the item's value is
-// not an int8, or if it was not found. If there is no error, the incremented
-// value is returned.
+// 将int8类型的项目增加n。如果项目的值不是int8或未找到，则返回错误
+// 如果没有错误，则返回增加后的值
 func (c *cache) IncrementInt8(k string, n int8) (int8, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -297,9 +286,8 @@ func (c *cache) IncrementInt8(k string, n int8) (int8, error) {
 	return nv, nil
 }
 
-// Increment an item of type int16 by n. Returns an error if the item's value is
-// not an int16, or if it was not found. If there is no error, the incremented
-// value is returned.
+// 将int16类型的项目增加n。如果项目的值不是int16或未找到，则返回错误
+// 如果没有错误，则返回增加后的值
 func (c *cache) IncrementInt16(k string, n int16) (int16, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -319,9 +307,8 @@ func (c *cache) IncrementInt16(k string, n int16) (int16, error) {
 	return nv, nil
 }
 
-// Increment an item of type int32 by n. Returns an error if the item's value is
-// not an int32, or if it was not found. If there is no error, the incremented
-// value is returned.
+// 将int32类型的项目增加n。如果项目的值不是int32或未找到，则返回错误
+// 如果没有错误，则返回增加后的值
 func (c *cache) IncrementInt32(k string, n int32) (int32, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -341,9 +328,8 @@ func (c *cache) IncrementInt32(k string, n int32) (int32, error) {
 	return nv, nil
 }
 
-// Increment an item of type int64 by n. Returns an error if the item's value is
-// not an int64, or if it was not found. If there is no error, the incremented
-// value is returned.
+// 将int64类型的项目增加n。如果项目的值不是int64或未找到，则返回错误
+// 如果没有错误，则返回增加后的值
 func (c *cache) IncrementInt64(k string, n int64) (int64, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -363,9 +349,8 @@ func (c *cache) IncrementInt64(k string, n int64) (int64, error) {
 	return nv, nil
 }
 
-// Increment an item of type uint by n. Returns an error if the item's value is
-// not an uint, or if it was not found. If there is no error, the incremented
-// value is returned.
+// 将uint类型的项目增加n。如果项目的值不是uint或未找到，则返回错误
+// 如果没有错误，则返回增加后的值
 func (c *cache) IncrementUint(k string, n uint) (uint, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -385,9 +370,8 @@ func (c *cache) IncrementUint(k string, n uint) (uint, error) {
 	return nv, nil
 }
 
-// Increment an item of type uintptr by n. Returns an error if the item's value
-// is not an uintptr, or if it was not found. If there is no error, the
-// incremented value is returned.
+// 将uintptr类型的项目增加n。如果项目的值不是uintptr或未找到，则返回错误
+// 如果没有错误，则返回增加后的值
 func (c *cache) IncrementUintptr(k string, n uintptr) (uintptr, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -407,9 +391,8 @@ func (c *cache) IncrementUintptr(k string, n uintptr) (uintptr, error) {
 	return nv, nil
 }
 
-// Increment an item of type uint8 by n. Returns an error if the item's value
-// is not an uint8, or if it was not found. If there is no error, the
-// incremented value is returned.
+// 将uint8类型的项目增加n。如果项目的值不是uint8或未找到，则返回错误
+// 如果没有错误，则返回增加后的值
 func (c *cache) IncrementUint8(k string, n uint8) (uint8, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -429,9 +412,8 @@ func (c *cache) IncrementUint8(k string, n uint8) (uint8, error) {
 	return nv, nil
 }
 
-// Increment an item of type uint16 by n. Returns an error if the item's value
-// is not an uint16, or if it was not found. If there is no error, the
-// incremented value is returned.
+// 将uint16类型的项目增加n。如果项目的值不是uint16或未找到，则返回错误
+// 如果没有错误，则返回增加后的值
 func (c *cache) IncrementUint16(k string, n uint16) (uint16, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -451,9 +433,8 @@ func (c *cache) IncrementUint16(k string, n uint16) (uint16, error) {
 	return nv, nil
 }
 
-// Increment an item of type uint32 by n. Returns an error if the item's value
-// is not an uint32, or if it was not found. If there is no error, the
-// incremented value is returned.
+// 将uint32类型的项目增加n。如果项目的值不是uint32或未找到，则返回错误
+// 如果没有错误，则返回增加后的值
 func (c *cache) IncrementUint32(k string, n uint32) (uint32, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -473,9 +454,8 @@ func (c *cache) IncrementUint32(k string, n uint32) (uint32, error) {
 	return nv, nil
 }
 
-// Increment an item of type uint64 by n. Returns an error if the item's value
-// is not an uint64, or if it was not found. If there is no error, the
-// incremented value is returned.
+// 将uint64类型的项目增加n。如果项目的值不是uint64或未找到，则返回错误
+// 如果没有错误，则返回增加后的值
 func (c *cache) IncrementUint64(k string, n uint64) (uint64, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -495,9 +475,8 @@ func (c *cache) IncrementUint64(k string, n uint64) (uint64, error) {
 	return nv, nil
 }
 
-// Increment an item of type float32 by n. Returns an error if the item's value
-// is not an float32, or if it was not found. If there is no error, the
-// incremented value is returned.
+// 将float32类型的项目增加n。如果项目的值不是float32或未找到，则返回错误
+// 如果没有错误，则返回增加后的值
 func (c *cache) IncrementFloat32(k string, n float32) (float32, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -517,9 +496,8 @@ func (c *cache) IncrementFloat32(k string, n float32) (float32, error) {
 	return nv, nil
 }
 
-// Increment an item of type float64 by n. Returns an error if the item's value
-// is not an float64, or if it was not found. If there is no error, the
-// incremented value is returned.
+// 将float64类型的项目增加n。如果项目的值不是float64或未找到，则返回错误
+// 如果没有错误，则返回增加后的值
 func (c *cache) IncrementFloat64(k string, n float64) (float64, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -539,11 +517,9 @@ func (c *cache) IncrementFloat64(k string, n float64) (float64, error) {
 	return nv, nil
 }
 
-// Decrement an item of type int, int8, int16, int32, int64, uintptr, uint,
-// uint8, uint32, or uint64, float32 or float64 by n. Returns an error if the
-// item's value is not an integer, if it was not found, or if it is not
-// possible to decrement it by n. To retrieve the decremented value, use one
-// of the specialized methods, e.g. DecrementInt64.
+// 将int、int8、int16、int32、int64、uintptr、uint、uint8、uint32、uint64、
+// float32或float64类型的项目减少n。如果项目的值不是整数、未找到或无法减少n，则返回错误
+// 要获取减少后的值，请使用专门的函数，例如DecrementInt64
 func (c *cache) Decrement(k string, n int64) error {
 	// TODO: Implement Increment and Decrement more cleanly.
 	// (Cannot do Increment(k, n*-1) for uints.)
@@ -589,11 +565,8 @@ func (c *cache) Decrement(k string, n int64) error {
 	return nil
 }
 
-// Decrement an item of type float32 or float64 by n. Returns an error if the
-// item's value is not floating point, if it was not found, or if it is not
-// possible to decrement it by n. Pass a negative number to decrement the
-// value. To retrieve the decremented value, use one of the specialized methods,
-// e.g. DecrementFloat64.
+// 将float32或float64类型的项目减少n。如果项目的值不是浮点数、未找到或无法减少n，则返回错误
+// 传递负数来增加值。要获取减少后的值，请使用专门的函数，例如DecrementFloat64
 func (c *cache) DecrementFloat(k string, n float64) error {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -615,9 +588,8 @@ func (c *cache) DecrementFloat(k string, n float64) error {
 	return nil
 }
 
-// Decrement an item of type int by n. Returns an error if the item's value is
-// not an int, or if it was not found. If there is no error, the decremented
-// value is returned.
+// 将int类型的项目减少n。如果项目的值不是int或未找到，则返回错误
+// 如果没有错误，则返回减少后的值
 func (c *cache) DecrementInt(k string, n int) (int, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -637,9 +609,8 @@ func (c *cache) DecrementInt(k string, n int) (int, error) {
 	return nv, nil
 }
 
-// Decrement an item of type int8 by n. Returns an error if the item's value is
-// not an int8, or if it was not found. If there is no error, the decremented
-// value is returned.
+// 将int8类型的项目减少n。如果项目的值不是int8或未找到，则返回错误
+// 如果没有错误，则返回减少后的值
 func (c *cache) DecrementInt8(k string, n int8) (int8, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -659,9 +630,8 @@ func (c *cache) DecrementInt8(k string, n int8) (int8, error) {
 	return nv, nil
 }
 
-// Decrement an item of type int16 by n. Returns an error if the item's value is
-// not an int16, or if it was not found. If there is no error, the decremented
-// value is returned.
+// 将int16类型的项目减少n。如果项目的值不是int16或未找到，则返回错误
+// 如果没有错误，则返回减少后的值
 func (c *cache) DecrementInt16(k string, n int16) (int16, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -681,9 +651,8 @@ func (c *cache) DecrementInt16(k string, n int16) (int16, error) {
 	return nv, nil
 }
 
-// Decrement an item of type int32 by n. Returns an error if the item's value is
-// not an int32, or if it was not found. If there is no error, the decremented
-// value is returned.
+// 将int32类型的项目减少n。如果项目的值不是int32或未找到，则返回错误
+// 如果没有错误，则返回减少后的值
 func (c *cache) DecrementInt32(k string, n int32) (int32, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -703,9 +672,8 @@ func (c *cache) DecrementInt32(k string, n int32) (int32, error) {
 	return nv, nil
 }
 
-// Decrement an item of type int64 by n. Returns an error if the item's value is
-// not an int64, or if it was not found. If there is no error, the decremented
-// value is returned.
+// 将int64类型的项目减少n。如果项目的值不是int64或未找到，则返回错误
+// 如果没有错误，则返回减少后的值
 func (c *cache) DecrementInt64(k string, n int64) (int64, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -725,9 +693,8 @@ func (c *cache) DecrementInt64(k string, n int64) (int64, error) {
 	return nv, nil
 }
 
-// Decrement an item of type uint by n. Returns an error if the item's value is
-// not an uint, or if it was not found. If there is no error, the decremented
-// value is returned.
+// 将uint类型的项目减少n。如果项目的值不是uint或未找到，则返回错误
+// 如果没有错误，则返回减少后的值
 func (c *cache) DecrementUint(k string, n uint) (uint, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -747,9 +714,8 @@ func (c *cache) DecrementUint(k string, n uint) (uint, error) {
 	return nv, nil
 }
 
-// Decrement an item of type uintptr by n. Returns an error if the item's value
-// is not an uintptr, or if it was not found. If there is no error, the
-// decremented value is returned.
+// 将uintptr类型的项目减少n。如果项目的值不是uintptr或未找到，则返回错误
+// 如果没有错误，则返回减少后的值
 func (c *cache) DecrementUintptr(k string, n uintptr) (uintptr, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -769,9 +735,8 @@ func (c *cache) DecrementUintptr(k string, n uintptr) (uintptr, error) {
 	return nv, nil
 }
 
-// Decrement an item of type uint8 by n. Returns an error if the item's value is
-// not an uint8, or if it was not found. If there is no error, the decremented
-// value is returned.
+// 将uint8类型的项目减少n。如果项目的值不是uint8或未找到，则返回错误
+// 如果没有错误，则返回减少后的值
 func (c *cache) DecrementUint8(k string, n uint8) (uint8, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -791,9 +756,8 @@ func (c *cache) DecrementUint8(k string, n uint8) (uint8, error) {
 	return nv, nil
 }
 
-// Decrement an item of type uint16 by n. Returns an error if the item's value
-// is not an uint16, or if it was not found. If there is no error, the
-// decremented value is returned.
+// 将uint16类型的项目减少n。如果项目的值不是uint16或未找到，则返回错误
+// 如果没有错误，则返回减少后的值
 func (c *cache) DecrementUint16(k string, n uint16) (uint16, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -813,9 +777,8 @@ func (c *cache) DecrementUint16(k string, n uint16) (uint16, error) {
 	return nv, nil
 }
 
-// Decrement an item of type uint32 by n. Returns an error if the item's value
-// is not an uint32, or if it was not found. If there is no error, the
-// decremented value is returned.
+// 将uint32类型的项目减少n。如果项目的值不是uint32或未找到，则返回错误
+// 如果没有错误，则返回减少后的值
 func (c *cache) DecrementUint32(k string, n uint32) (uint32, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -835,9 +798,8 @@ func (c *cache) DecrementUint32(k string, n uint32) (uint32, error) {
 	return nv, nil
 }
 
-// Decrement an item of type uint64 by n. Returns an error if the item's value
-// is not an uint64, or if it was not found. If there is no error, the
-// decremented value is returned.
+// 将uint64类型的项目减少n。如果项目的值不是uint64或未找到，则返回错误
+// 如果没有错误，则返回减少后的值
 func (c *cache) DecrementUint64(k string, n uint64) (uint64, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -857,9 +819,8 @@ func (c *cache) DecrementUint64(k string, n uint64) (uint64, error) {
 	return nv, nil
 }
 
-// Decrement an item of type float32 by n. Returns an error if the item's value
-// is not an float32, or if it was not found. If there is no error, the
-// decremented value is returned.
+// 将float32类型的项目减少n。如果项目的值不是float32或未找到，则返回错误
+// 如果没有错误，则返回减少后的值
 func (c *cache) DecrementFloat32(k string, n float32) (float32, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -879,9 +840,8 @@ func (c *cache) DecrementFloat32(k string, n float32) (float32, error) {
 	return nv, nil
 }
 
-// Decrement an item of type float64 by n. Returns an error if the item's value
-// is not an float64, or if it was not found. If there is no error, the
-// decremented value is returned.
+// 将float64类型的项目减少n。如果项目的值不是float64或未找到，则返回错误
+// 如果没有错误，则返回减少后的值
 func (c *cache) DecrementFloat64(k string, n float64) (float64, error) {
 	c.mu.Lock()
 	v, found := c.items[k]
@@ -901,7 +861,7 @@ func (c *cache) DecrementFloat64(k string, n float64) (float64, error) {
 	return nv, nil
 }
 
-// Delete an item from the cache. Does nothing if the key is not in the cache.
+// 从缓存删除项目。如果键不在缓存中则不执行任何操作
 func (c *cache) Delete(k string) {
 	c.mu.Lock()
 	v, evicted := c.delete(k)
@@ -927,7 +887,7 @@ type keyAndValue struct {
 	value interface{}
 }
 
-// Delete all expired items from the cache.
+// 从缓存删除所有已过期的项目
 func (c *cache) DeleteExpired() {
 	var evictedItems []keyAndValue
 	now := time.Now().UnixNano()
@@ -947,19 +907,17 @@ func (c *cache) DeleteExpired() {
 	}
 }
 
-// Sets an (optional) function that is called with the key and value when an
-// item is evicted from the cache. (Including when it is deleted manually, but
-// not when it is overwritten.) Set to nil to disable.
+// 设置一个（可选的）函数，当项目从缓存中驱逐时调用该函数（包括手动删除时，但不包括覆盖时）
+// 设置为nil以禁用
 func (c *cache) OnEvicted(f func(string, interface{})) {
 	c.mu.Lock()
 	c.onEvicted = f
 	c.mu.Unlock()
 }
 
-// Write the cache's items (using Gob) to an io.Writer.
+// 将缓存的项写入io.Writer（使用Gob编码）
 //
-// NOTE: This method is deprecated in favor of c.Items() and NewFrom() (see the
-// documentation for NewFrom().)
+// 注意：此方法已弃用，推荐使用c.Items()和NewFrom()（参见NewFrom()的文档）
 func (c *cache) Save(w io.Writer) (err error) {
 	enc := gob.NewEncoder(w)
 	defer func() {
@@ -976,11 +934,9 @@ func (c *cache) Save(w io.Writer) (err error) {
 	return
 }
 
-// Save the cache's items to the given filename, creating the file if it
-// doesn't exist, and overwriting it if it does.
+// 将缓存的项保存到给定文件名，如果文件不存在则创建，如果存在则覆盖
 //
-// NOTE: This method is deprecated in favor of c.Items() and NewFrom() (see the
-// documentation for NewFrom().)
+// 注意：此方法已弃用，推荐使用c.Items()和NewFrom()（参见NewFrom()的文档）
 func (c *cache) SaveFile(fname string) error {
 	fp, err := os.Create(fname)
 	if err != nil {
@@ -994,11 +950,9 @@ func (c *cache) SaveFile(fname string) error {
 	return fp.Close()
 }
 
-// Add (Gob-serialized) cache items from an io.Reader, excluding any items with
-// keys that already exist (and haven't expired) in the current cache.
+// 从io.Reader添加（Gob序列化的）缓存项，排除当前缓存中已存在（且未过期）的键
 //
-// NOTE: This method is deprecated in favor of c.Items() and NewFrom() (see the
-// documentation for NewFrom().)
+// 注意：此方法已弃用，推荐使用c.Items()和NewFrom()（参见NewFrom()的文档）
 func (c *cache) Load(r io.Reader) error {
 	dec := gob.NewDecoder(r)
 	items := map[string]Item{}
@@ -1016,11 +970,9 @@ func (c *cache) Load(r io.Reader) error {
 	return err
 }
 
-// Load and add cache items from the given filename, excluding any items with
-// keys that already exist in the current cache.
+// 从给定文件名加载并添加缓存项，排除当前缓存中已存在的键
 //
-// NOTE: This method is deprecated in favor of c.Items() and NewFrom() (see the
-// documentation for NewFrom().)
+// 注意：此方法已弃用，推荐使用c.Items()和NewFrom()（参见NewFrom()的文档）
 func (c *cache) LoadFile(fname string) error {
 	fp, err := os.Open(fname)
 	if err != nil {
@@ -1034,7 +986,7 @@ func (c *cache) LoadFile(fname string) error {
 	return fp.Close()
 }
 
-// Copies all unexpired items in the cache into a new map and returns it.
+// 将所有未过期的缓存项复制到新映射中并返回
 func (c *cache) Items() map[string]Item {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -1052,8 +1004,7 @@ func (c *cache) Items() map[string]Item {
 	return m
 }
 
-// Returns the number of items in the cache. This may include items that have
-// expired, but have not yet been cleaned up.
+// 返回缓存中的项目数。这可能包括已过期但尚未清理的项目
 func (c *cache) ItemCount() int {
 	c.mu.RLock()
 	n := len(c.items)
@@ -1061,7 +1012,7 @@ func (c *cache) ItemCount() int {
 	return n
 }
 
-// Delete all items from the cache.
+// 从缓存中删除所有项目
 func (c *cache) Flush() {
 	c.mu.Lock()
 	c.items = map[string]Item{}
@@ -1125,37 +1076,27 @@ func newCacheWithJanitor(de time.Duration, ci time.Duration, m map[string]Item) 
 	return C
 }
 
-// Return a new cache with a given default expiration duration and cleanup
-// interval. If the expiration duration is less than one (or NoExpiration),
-// the items in the cache never expire (by default), and must be deleted
-// manually. If the cleanup interval is less than one, expired items are not
-// deleted from the cache before calling c.DeleteExpired().
+// 返回具有给定默认过期时间和清理间隔的新缓存
+// 如果过期时间小于1（或NoExpiration），则缓存中的项目永不过期（默认情况下），必须手动删除
+// 如果清理间隔小于1，则在调用c.DeleteExpired()之前不会从缓存中删除过期项目
 func New(defaultExpiration, cleanupInterval time.Duration) *Cache {
 	items := make(map[string]Item)
 	return newCacheWithJanitor(defaultExpiration, cleanupInterval, items)
 }
 
-// Return a new cache with a given default expiration duration and cleanup
-// interval. If the expiration duration is less than one (or NoExpiration),
-// the items in the cache never expire (by default), and must be deleted
-// manually. If the cleanup interval is less than one, expired items are not
-// deleted from the cache before calling c.DeleteExpired().
+// 返回具有给定默认过期时间和清理间隔的新缓存
+// 如果过期时间小于1（或NoExpiration），则缓存中的项目永不过期（默认情况下），必须手动删除
+// 如果清理间隔小于1，则在调用c.DeleteExpired()之前不会从缓存中删除过期项目
 //
-// NewFrom() also accepts an items map which will serve as the underlying map
-// for the cache. This is useful for starting from a deserialized cache
-// (serialized using e.g. gob.Encode() on c.Items()), or passing in e.g.
-// make(map[string]Item, 500) to improve startup performance when the cache
-// is expected to reach a certain minimum size.
+// NewFrom()还接受一个items映射，它将作为缓存的基础映射
+// 这对于从反序列化的缓存开始（使用例如gob.Encode()在c.Items()上序列化），
+// 或者传入例如make(map[string]Item, 500)以提高缓存预期达到某个最小大小时的启动性能很有用
 //
-// Only the cache's methods synchronize access to this map, so it is not
-// recommended to keep any references to the map around after creating a cache.
-// If need be, the map can be accessed at a later point using c.Items() (subject
-// to the same caveat.)
+// 只有缓存的方法同步访问此映射，因此不建议在创建缓存后保留对映射的任何引用
+// 如果需要，可以在以后使用c.Items()访问映射（受相同注意事项的限制）
 //
-// Note regarding serialization: When using e.g. gob, make sure to
-// gob.Register() the individual types stored in the cache before encoding a
-// map retrieved with c.Items(), and to register those same types before
-// decoding a blob containing an items map.
+// 关于序列化的注意事项：使用例如gob时，请确保在编码使用c.Items()检索的映射之前
+// 注册存储在缓存中的各个类型，并在解码包含items映射的blob之前注册相同的类型
 func NewFrom(defaultExpiration, cleanupInterval time.Duration, items map[string]Item) *Cache {
 	return newCacheWithJanitor(defaultExpiration, cleanupInterval, items)
 }

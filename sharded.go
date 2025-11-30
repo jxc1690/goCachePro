@@ -10,14 +10,11 @@ import (
 	"time"
 )
 
-// This is an experimental and unexported (for now) attempt at making a cache
-// with better algorithmic complexity than the standard one, namely by
-// preventing write locks of the entire cache when an item is added. As of the
-// time of writing, the overhead of selecting buckets results in cache
-// operations being about twice as slow as for the standard cache with small
-// total cache sizes, and faster for larger ones.
+// 这是一个实验性的且未导出的（目前）尝试，旨在创建一个比标准缓存具有更好算法复杂度的缓存，
+// 具体通过防止在添加项目时对整个缓存进行写锁定来实现。在撰写本文时，
+// 选择桶的开销导致缓存操作在总缓存大小较小时比标准缓存慢约两倍，而在较大时更快。
 //
-// See cache_test.go for a few benchmarks.
+// 有关一些基准测试，请参见cache_test.go。
 
 type unexportedShardedCache struct {
 	*shardedCache
@@ -30,7 +27,7 @@ type shardedCache struct {
 	janitor *shardedJanitor
 }
 
-// djb2 with better shuffling. 5x faster than FNV with the hash.Hash overhead.
+// 具有更好洗牌效果的djb2哈希算法。比带有hash.Hash开销的FNV快5倍。
 func djb33(seed uint32, k string) uint32 {
 	var (
 		l = uint32(len(k))
@@ -104,11 +101,9 @@ func (sc *shardedCache) DeleteExpired() {
 	}
 }
 
-// Returns the items in the cache. This may include items that have expired,
-// but have not yet been cleaned up. If this is significant, the Expiration
-// fields of the items should be checked. Note that explicit synchronization
-// is needed to use a cache and its corresponding Items() return values at
-// the same time, as the maps are shared.
+// 返回缓存中的项目。这可能包括已过期但尚未清理的项目。
+// 如果这很重要，应检查项目的Expiration字段。请注意，
+// 需要显式同步才能同时使用缓存及其相应的Items()返回值，因为映射是共享的。
 func (sc *shardedCache) Items() []map[string]Item {
 	res := make([]map[string]Item, len(sc.cs))
 	for i, v := range sc.cs {
