@@ -13,16 +13,20 @@ cache can be saved to and loaded from a file (using `c.Items()` to retrieve the
 items map to serialize, and `NewFrom()` to create a cache from a deserialized
 one) to recover from downtime quickly. (See the docs for `NewFrom()` for caveats.)
 
-### Installation
+基于 go-cache v2.1.0 二次开发，增加以下功能：
+cachePro 结构体，新增方法：
+改为泛型支持 指定类型存取
+并且在删除的时候 可以调用析构函数
+### 安装
 
-`go get github.com/patrickmn/go-cache`
+`go get github.com/jxc1690/goCachePro`
 
-### Usage
+### 原版方法
 
 ```go
 import (
 	"fmt"
-	"github.com/patrickmn/go-cache"
+	"github.com/jxc1690/goCachePro"
 	"time"
 )
 
@@ -75,6 +79,39 @@ func main() {
 		foo := x.(*MyStruct)
 			// ...
 	}
+}
+```
+
+### 使用改进后的泛型方法
+
+```go
+import (
+    "fmt"
+    "github.com/jxc1690/goCachePro"
+    "time"
+)
+
+func main() {
+    // Create a cache with a default expiration time of 5 minutes, and which
+    // purges expired items every 10 minutes
+    c := cachePro.NewPro[string](5*time.Minute, 10*time.Minute, nil)
+
+    // Set the value of the key "foo" to "bar", with the default expiration time
+    c.Set("foo", "bar", cachePro.DefaultExpiration)
+
+    // Get the string associated with the key "foo" from the cache
+    foo, found := c.Get("foo")
+    if found {
+        fmt.Println(foo)
+    }
+
+    // Example with destructor function
+    destructor := func(value string) {
+        fmt.Println("Destructing value:", value)
+    }
+    cWithDestructor := cachePro.NewPro[string](5*time.Minute, 10*time.Minute, destructor)
+    cWithDestructor.Set("key1", "value1", cachePro.DefaultExpiration)
+    cWithDestructor.Delete("key1") // This will call the destructor function
 }
 ```
 
