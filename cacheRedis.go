@@ -11,15 +11,19 @@ import (
 )
 
 type CacheRedis[T any] struct {
-	client *redis.Client
-	ctx    context.Context
+	client      *redis.Client
+	ctx         context.Context
+	defaultTime time.Duration
+	cache       *CachePro[T]
 }
 
 // NewCacheRedis 创建一个新的Redis缓存实例
-func NewCacheRedis[T any](client *redis.Client) *CacheRedis[T] {
+func NewCacheRedis[T any](client *redis.Client, defaultTimes, clearTime time.Duration) *CacheRedis[T] {
 	return &CacheRedis[T]{
-		client: client,
-		ctx:    context.Background(),
+		client:      client,
+		ctx:         context.Background(),
+		defaultTime: defaultTimes,
+		cache:       NewPro[T](defaultTimes, clearTime, nil),
 	}
 }
 
@@ -55,7 +59,7 @@ func (c *CacheRedis[T]) Set(k string, x T, d time.Duration) error {
 
 // SetDefault 向Redis缓存添加一个项目，使用默认过期时间（永不过期）
 func (c *CacheRedis[T]) SetDefault(k string, x T) error {
-	return c.Set(k, x, DefaultExpiration)
+	return c.Set(k, x, c.defaultTime)
 }
 
 // Add 仅当给定键不存在时，向Redis缓存添加项目
