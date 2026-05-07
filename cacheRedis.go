@@ -27,11 +27,12 @@ func NewCacheRedis[T any](client *redis.Client, defaultTimes, clearTime time.Dur
 	}
 }
 
-// Set 向Redis缓存添加一个项目，替换任何现有项目
+// Set 向本地缓存和Redis添加一个项目，替换任何现有项目
 // 如果持续时间为0 (DefaultExpiration)，则使用默认过期时间（永不过期）
 // 如果为-1 (NoExpiration)，则项目永不过期
 // 如果大于0，则设置相应的TTL
 func (c *CacheRedis[T]) Set(k string, x T, d time.Duration) error {
+	// 写入Redis
 	data, err := json.Marshal(x)
 	if err != nil {
 		return fmt.Errorf("failed to marshal value: %w", err)
@@ -54,7 +55,11 @@ func (c *CacheRedis[T]) Set(k string, x T, d time.Duration) error {
 	if ttl > 0 {
 		return c.client.Set(c.ctx, k, data, ttl).Err()
 	}
-	return c.client.Set(c.ctx, k, data, 0).Err()
+	if err := c.client.Set(c.ctx, k, data, 0).Err(); err != nil {
+		return err
+	}
+	c.cache.Set(k, x, d)
+	return nil
 }
 
 // SetDefault 向Redis缓存添加一个项目，使用默认过期时间（永不过期）
@@ -123,9 +128,15 @@ func (c *CacheRedis[T]) Replace(k string, x T, d time.Duration) error {
 	return c.Set(k, x, d)
 }
 
-// Get 从Redis缓存获取项目
+// Get 从本地缓存获取项目，如果本地缓存没有则从Redis获取
 // 返回项目或零值，以及一个布尔值指示是否找到键
 func (c *CacheRedis[T]) Get(k string) (T, bool) {
+	// 先从本地缓存获取
+	if value, found := c.cache.Get(k); found {
+		return value, true
+	}
+
+	// 本地缓存没有，从Redis获取
 	var zero T
 	data, err := c.client.Get(c.ctx, k).Result()
 	if err != nil {
@@ -134,11 +145,13 @@ func (c *CacheRedis[T]) Get(k string) (T, bool) {
 		}
 		return zero, false
 	}
-
 	var value T
 	if err := json.Unmarshal([]byte(data), &value); err != nil {
 		return zero, false
 	}
+
+	// 将从Redis获取的值存入本地缓存
+	c.cache.Set(k, value, c.defaultTime)
 	return value, true
 }
 
@@ -182,9 +195,15 @@ func (c *CacheRedis[T]) GetWithExpiration(k string) (T, time.Time, bool) {
 	return value, expiration, true
 }
 
-// Delete 从Redis缓存删除项目
+// Delete 从本地缓存和Redis删除项目
 func (c *CacheRedis[T]) Delete(k string) error {
-	return c.client.Del(c.ctx, k).Err()
+	// 删除Redis
+	if err := c.client.Del(c.ctx, k).Err(); err != nil {
+		return err
+	}
+	// 同时删除本地缓存
+	c.cache.Delete(k)
+	return nil
 }
 
 // DeleteExpired Redis会自动删除过期项目，此方法用于兼容API
@@ -219,9 +238,15 @@ func (c *CacheRedis[T]) ItemCount() (int64, error) {
 	return c.client.DBSize(c.ctx).Result()
 }
 
-// Flush 清空当前数据库的所有键
+// Flush 清空本地缓存和当前数据库的所有键
 func (c *CacheRedis[T]) Flush() error {
-	return c.client.FlushDB(c.ctx).Err()
+	// 清空Redis
+	if err := c.client.FlushDB(c.ctx).Err(); err != nil {
+		return err
+	}
+	// 清空本地缓存
+	c.cache.Flush()
+	return nil
 }
 
 // Increment 增加数值类型的值

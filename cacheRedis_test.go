@@ -28,7 +28,7 @@ func TestCacheRedisBasic(t *testing.T) {
 	client.FlushDB(ctx)
 
 	// 创建CacheRedis实例
-	cache := NewCacheRedis[string](client)
+	cache := NewCacheRedis[string](client, 5*time.Minute, 5*time.Minute)
 
 	// 测试Set和Get
 	err := cache.Set("key1", "value1", DefaultExpiration)
@@ -84,7 +84,7 @@ func TestCacheRedisExpiration(t *testing.T) {
 	client.FlushDB(ctx)
 
 	// 创建CacheRedis实例
-	cache := NewCacheRedis[string](client)
+	cache := NewCacheRedis[string](client, 5*time.Minute, 5*time.Minute)
 
 	// 测试带过期时间的Set
 	err := cache.Set("key2", "value2", 100*time.Millisecond)
@@ -133,7 +133,7 @@ func TestCacheRedisAdd(t *testing.T) {
 	client.FlushDB(ctx)
 
 	// 创建CacheRedis实例
-	cache := NewCacheRedis[string](client)
+	cache := NewCacheRedis[string](client, 5*time.Minute, 5*time.Minute)
 
 	// 第一次Add应该成功
 	err := cache.Add("key3", "value3", DefaultExpiration)
@@ -182,7 +182,7 @@ func TestCacheRedisReplace(t *testing.T) {
 	client.FlushDB(ctx)
 
 	// 创建CacheRedis实例
-	cache := NewCacheRedis[string](client)
+	cache := NewCacheRedis[string](client, 5*time.Minute, 5*time.Minute)
 
 	// 替换不存在的键应该失败
 	err := cache.Replace("key4", "value4", DefaultExpiration)
@@ -234,7 +234,7 @@ func TestCacheRedisIncrementDecrement(t *testing.T) {
 	client.FlushDB(ctx)
 
 	// 创建CacheRedis实例
-	cache := NewCacheRedis[string](client)
+	cache := NewCacheRedis[string](client, 5*time.Minute, 5*time.Minute)
 
 	// 测试Increment
 	// 注意：Increment/Decrement方法只适用于数值类型
@@ -247,7 +247,7 @@ func TestCacheRedisIncrementDecrement(t *testing.T) {
 
 	// 由于我们的泛型实现，Increment/Decrement方法需要数值类型
 	// 这里我们创建一个专门用于int的缓存实例
-	intCache := NewCacheRedis[int64](client)
+	intCache := NewCacheRedis[int64](client, 5*time.Minute, 5*time.Minute)
 	intCache.Set("intcounter", int64(10), DefaultExpiration)
 
 	// 测试Increment
@@ -291,7 +291,7 @@ func TestCacheRedisFlush(t *testing.T) {
 	client.FlushDB(ctx)
 
 	// 创建CacheRedis实例
-	cache := NewCacheRedis[string](client)
+	cache := NewCacheRedis[string](client, 5*time.Minute, 5*time.Minute)
 
 	// 设置一些键
 	cache.Set("key5", "value5", DefaultExpiration)
@@ -342,7 +342,7 @@ func TestCacheRedisStruct(t *testing.T) {
 	}
 
 	// 创建CacheRedis实例
-	cache := NewCacheRedis[Person](client)
+	cache := NewCacheRedis[Person](client, 5*time.Minute, 5*time.Minute)
 
 	// 设置结构体
 	person := Person{Name: "Alice", Age: 30}
@@ -378,7 +378,7 @@ func BenchmarkCacheRedisSet(b *testing.B) {
 	}
 
 	client.FlushDB(ctx)
-	cache := NewCacheRedis[string](client)
+	cache := NewCacheRedis[string](client, 5*time.Minute, 5*time.Minute)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -404,7 +404,7 @@ func BenchmarkCacheRedisGet(b *testing.B) {
 	}
 
 	client.FlushDB(ctx)
-	cache := NewCacheRedis[string](client)
+	cache := NewCacheRedis[string](client, 5*time.Minute, 5*time.Minute)
 
 	// 先设置一个键
 	cache.Set("benchkey", "benchvalue", DefaultExpiration)
