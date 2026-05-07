@@ -1,0 +1,12 @@
+services:
+  redis:
+    image: redis:8.0
+    container_name: goCachePro-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass 88888888
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "88888888", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

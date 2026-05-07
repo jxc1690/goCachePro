@@ -9,13 +9,18 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const (
+	addrhost = "127.0.0.1:6379"
+	password = "88888888"
+)
+
 // TestCacheRedisBasic 测试CacheRedis的基本功能
 // 注意：这个测试需要运行Redis服务器
 func TestCacheRedisBasic(t *testing.T) {
 	// 创建Redis客户端
 	client := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "88888888",
+		Addr:     addrhost,
+		Password: password,
 	})
 
 	// 测试连接
@@ -70,8 +75,8 @@ func TestCacheRedisBasic(t *testing.T) {
 func TestCacheRedisExpiration(t *testing.T) {
 	// 创建Redis客户端
 	client := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "88888888",
+		Addr:     addrhost,
+		Password: password,
 	})
 
 	// 测试连接
@@ -84,10 +89,10 @@ func TestCacheRedisExpiration(t *testing.T) {
 	client.FlushDB(ctx)
 
 	// 创建CacheRedis实例
-	cache := NewCacheRedis[string](client, 5*time.Minute, 5*time.Minute)
+	cache := NewCacheRedis[string](client, 2*time.Second, 2*time.Second)
 
 	// 测试带过期时间的Set
-	err := cache.Set("key2", "value2", 100*time.Millisecond)
+	err := cache.Set("key2", "value2", 2*time.Second)
 	if err != nil {
 		t.Errorf("Set with expiration failed: %v", err)
 	}
@@ -102,7 +107,7 @@ func TestCacheRedisExpiration(t *testing.T) {
 	}
 
 	// 等待过期
-	time.Sleep(150 * time.Millisecond)
+	time.Sleep(10 * time.Second)
 
 	// 过期后应该不存在
 	_, found = cache.Get("key2")
@@ -119,8 +124,8 @@ func TestCacheRedisExpiration(t *testing.T) {
 func TestCacheRedisAdd(t *testing.T) {
 	// 创建Redis客户端
 	client := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "88888888",
+		Addr:     addrhost,
+		Password: password,
 	})
 
 	// 测试连接
@@ -168,8 +173,8 @@ func TestCacheRedisAdd(t *testing.T) {
 func TestCacheRedisReplace(t *testing.T) {
 	// 创建Redis客户端
 	client := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "88888888",
+		Addr:     addrhost,
+		Password: password,
 	})
 
 	// 测试连接
@@ -220,8 +225,8 @@ func TestCacheRedisReplace(t *testing.T) {
 func TestCacheRedisIncrementDecrement(t *testing.T) {
 	// 创建Redis客户端
 	client := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "88888888",
+		Addr:     addrhost,
+		Password: password,
 	})
 
 	// 测试连接
@@ -277,8 +282,8 @@ func TestCacheRedisIncrementDecrement(t *testing.T) {
 func TestCacheRedisFlush(t *testing.T) {
 	// 创建Redis客户端
 	client := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "88888888",
+		Addr:     addrhost,
+		Password: password,
 	})
 
 	// 测试连接
@@ -322,8 +327,8 @@ func TestCacheRedisFlush(t *testing.T) {
 func TestCacheRedisStruct(t *testing.T) {
 	// 创建Redis客户端
 	client := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "88888888",
+		Addr:     addrhost,
+		Password: password,
 	})
 
 	// 测试连接
@@ -368,8 +373,8 @@ func TestCacheRedisStruct(t *testing.T) {
 // BenchmarkCacheRedisSet 基准测试Set操作
 func BenchmarkCacheRedisSet(b *testing.B) {
 	client := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "88888888",
+		Addr:     addrhost,
+		Password: password,
 	})
 
 	ctx := context.Background()
@@ -394,8 +399,8 @@ func BenchmarkCacheRedisSet(b *testing.B) {
 // BenchmarkCacheRedisGet 基准测试Get操作
 func BenchmarkCacheRedisGet(b *testing.B) {
 	client := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "88888888",
+		Addr:     addrhost,
+		Password: password,
 	})
 
 	ctx := context.Background()
